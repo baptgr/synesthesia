@@ -12,22 +12,28 @@
     </header>
 
     <main class="container">
-      <section id="start-section" class="card">
-        <p>Click Start to enable audio and play a random track.</p>
-        <button id="start-btn">Start</button>
-      </section>
 
       <section id="player-section" class="card hidden">
         <div class="track-meta">
-          <div id="track-info" class="hidden">
-            <div id="track-title" class="title">—</div>
-            <div id="track-artist" class="artist">—</div>
-            <div id="playing-indicator" class="playing-indicator hidden">
+          <div class="track-content">
+            <div id="autoplay-hint" class="autoplay-hint hidden">Click or press any key to start the music</div>
+            <div id="playing-indicator-standalone" class="playing-indicator-standalone hidden">
               <span>Playing</span>
               <div class="wave"></div>
               <div class="wave"></div>
               <div class="wave"></div>
               <div class="wave"></div>
+            </div>
+            <div id="track-info" class="hidden">
+              <div id="track-title" class="title">—</div>
+              <div id="track-artist" class="artist">—</div>
+              <div id="playing-indicator" class="playing-indicator hidden">
+                <span>Playing</span>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+              </div>
             </div>
           </div>
           <div class="controls">
@@ -46,14 +52,14 @@
         </div>
         <div id="generate-status" class="status"></div>
         <div id="result-wrapper" class="result hidden">
-          <img id="result-image" alt="Generated image" />
+          <img id="result-image" alt="Generated image" style="display: none;" />
           <div id="result-caption" class="card-caption"></div>
         </div>
       </section>
 
       <section id="gallery-section" class="card hidden">
         <div class="row space-between">
-          <h2>Gallery for this track</h2>
+          <h2>What others imagined listening to this song</h2>
         </div>
         <div id="gallery-grid" class="grid"></div>
         <div class="center">

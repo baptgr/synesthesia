@@ -98,9 +98,9 @@ label {
 }
 
 .track-meta { 
-  display: flex; 
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center; 
-  justify-content: space-between; 
   gap: 20px; 
 }
 
@@ -160,6 +160,23 @@ label {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 1px;
+}
+
+/* Standalone playing indicator (shown before track info) */
+.playing-indicator-standalone {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  color: #ffffff;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.track-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .wave {
@@ -229,19 +246,30 @@ label {
 }
 
 h2 {
-  margin: 0;
+  margin: 0 0 12px 0;
   color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 2px;
   font-size: 16px;
 }
 
+#start-section h2 {
+  font-size: 22px;
+  margin-bottom: 20px;
+  text-transform: none;
+  letter-spacing: 1px;
+}
+
 p {
   color: #ccc;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin: 12px 0;
 }
+
 
 /* Result area */
 .result { margin-top: 16px; display: grid; grid-template-columns: 1fr; gap: 12px; }
 #result-image { width: 100%; max-height: 520px; object-fit: cover; border: 2px solid #333; border-radius: 8px; background: #222; }
 #result-caption { font-size: 13px; color: #ccc; }
+
+.autoplay-hint { color: #bbb; font-size: 12px; margin-bottom: 6px; opacity: 0.9; }
