@@ -17,9 +17,11 @@ console.log("Synesthesia client loaded");
   const promptInput = document.getElementById('prompt-input');
   const generateBtn = document.getElementById('generate-btn');
   const generateStatus = document.getElementById('generate-status');
+  const resultWrapper = document.getElementById('result-wrapper');
+  const resultImage = document.getElementById('result-image');
+  const resultCaption = document.getElementById('result-caption');
   const galleryGrid = document.getElementById('gallery-grid');
   const loadMoreBtn = document.getElementById('load-more-btn');
-  const refreshGalleryBtn = document.getElementById('refresh-gallery-btn');
 
   let currentTrack = null; // { id, title, artist, audioUrl }
   let galleryOffset = 0;
@@ -100,27 +102,25 @@ console.log("Synesthesia client loaded");
   async function setTrack(track) {
     currentTrack = track;
     firstGenerationDoneForTrack = false;
-    
-    // Set track data
-    trackTitle.textContent = track.title || 'Untitled';
-    trackArtist.textContent = track.artist || '';
-    audio.src = track.audioUrl;
-    
-    // Force hide track info until first generation
+    // Hide info/galleries/result until first gen
     if (trackInfo) {
       trackInfo.style.display = 'none';
       trackInfo.classList.add('hidden');
     }
     hide(gallerySection);
     hide(playingIndicator);
-    
+    hide(resultWrapper);
+
+    trackTitle.textContent = track.title || 'Untitled';
+    trackArtist.textContent = track.artist || '';
+    audio.src = track.audioUrl;
+
     try {
       await audio.play();
       updatePlayState(true);
     } catch (_) {
       updatePlayState(false);
     }
-    // We preload gallery silently, but keep hidden until first generation
     await refreshGallery(true);
   }
 
@@ -154,7 +154,7 @@ console.log("Synesthesia client loaded");
       generateStatus.textContent = 'Please enter a prompt.';
       return;
     }
-    generateStatus.textContent = 'Generating... (MVP stub)';
+    generateStatus.textContent = 'Generating...';
     generateBtn.disabled = true;
     try {
       const res = await fetch('/api/generate', {
@@ -162,10 +162,6 @@ console.log("Synesthesia client loaded");
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, trackId: currentTrack.id }),
       });
-      if (res.status === 501) {
-        generateStatus.textContent = 'Image generation not implemented yet (Flux coming soon).';
-        return;
-      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || 'Generation failed');
@@ -173,6 +169,7 @@ console.log("Synesthesia client loaded");
       const data = await res.json();
       generateStatus.textContent = 'Done!';
       promptInput.value = '';
+
       // Reveal track info and gallery after first actual generation success
       firstGenerationDoneForTrack = true;
       if (trackInfo) {
@@ -181,12 +178,15 @@ console.log("Synesthesia client loaded");
       }
       show(gallerySection);
       if (!audio.paused) show(playingIndicator);
-      // Prepend new image
+
+      // Show result inside prompt card, larger
       if (data.imageUrl) {
-        renderGalleryItems([{ id: data.generationId, imageUrl: data.imageUrl, promptText: prompt }], true);
-      } else {
-        await refreshGallery(true);
+        resultImage.src = data.imageUrl;
+        resultCaption.textContent = prompt;
+        show(resultWrapper);
       }
+
+      // Do not inject new image into gallery here; leave gallery to refresh manually on next/track change
     } catch (e) {
       generateStatus.textContent = String(e.message || e);
     } finally {
@@ -208,7 +208,6 @@ console.log("Synesthesia client loaded");
   generateBtn?.addEventListener('click', onGenerate);
   promptInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') onGenerate(); });
   loadMoreBtn?.addEventListener('click', () => refreshGallery(false));
-  refreshGalleryBtn?.addEventListener('click', () => refreshGallery(true));
 
   // Audio event listeners
   audio?.addEventListener('play', () => updatePlayState(true));
@@ -223,4 +222,5 @@ console.log("Synesthesia client loaded");
   }
   if (gallerySection) gallerySection.classList.add('hidden');
   if (playingIndicator) playingIndicator.classList.add('hidden');
+  hide(resultWrapper);
 })();
