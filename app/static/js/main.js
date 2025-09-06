@@ -6,12 +6,14 @@ console.log("Synesthesia client loaded");
   const promptSection = document.getElementById('prompt-section');
   const gallerySection = document.getElementById('gallery-section');
   const errorSection = document.getElementById('error-section');
-  const playBtn = document.getElementById('play-btn');
-  const pauseBtn = document.getElementById('pause-btn');
+  const playPauseBtn = document.getElementById('play-pause-btn');
   const nextBtn = document.getElementById('next-btn');
   const audio = document.getElementById('audio');
+  const trackInfo = document.getElementById('track-info');
+  console.log('Track info element:', trackInfo);
   const trackTitle = document.getElementById('track-title');
   const trackArtist = document.getElementById('track-artist');
+  const playingIndicator = document.getElementById('playing-indicator');
   const promptInput = document.getElementById('prompt-input');
   const generateBtn = document.getElementById('generate-btn');
   const generateStatus = document.getElementById('generate-status');
@@ -22,13 +24,30 @@ console.log("Synesthesia client loaded");
   let currentTrack = null; // { id, title, artist, audioUrl }
   let galleryOffset = 0;
   const galleryLimit = 12;
+  let firstGenerationDoneForTrack = false;
 
-  function show(el) { el.classList.remove('hidden'); }
-  function hide(el) { el.classList.add('hidden'); }
+  function show(el) { 
+    if (el) el.classList.remove('hidden'); 
+  }
+  function hide(el) { 
+    if (el) el.classList.add('hidden'); 
+  }
   function setError(msg) {
     if (!msg) { hide(errorSection); errorSection.textContent = ''; return; }
     errorSection.textContent = msg;
     show(errorSection);
+  }
+
+  function updatePlayState(isPlaying) {
+    if (isPlaying) {
+      playPauseBtn.textContent = '⏸';
+      playPauseBtn.classList.add('playing');
+      if (firstGenerationDoneForTrack) show(playingIndicator);
+    } else {
+      playPauseBtn.textContent = '▶';
+      playPauseBtn.classList.remove('playing');
+      hide(playingIndicator);
+    }
   }
 
   async function fetchRandomTrack() {
@@ -72,7 +91,7 @@ console.log("Synesthesia client loaded");
       const items = data.items || [];
       renderGalleryItems(items, !reset);
       galleryOffset += items.length;
-      show(gallerySection);
+      if (firstGenerationDoneForTrack) show(gallerySection);
     } catch (e) {
       setError(String(e.message || e));
     }
@@ -80,14 +99,28 @@ console.log("Synesthesia client loaded");
 
   async function setTrack(track) {
     currentTrack = track;
+    firstGenerationDoneForTrack = false;
+    
+    // Set track data
     trackTitle.textContent = track.title || 'Untitled';
     trackArtist.textContent = track.artist || '';
     audio.src = track.audioUrl;
+    
+    // Force hide track info until first generation
+    if (trackInfo) {
+      trackInfo.style.display = 'none';
+      trackInfo.classList.add('hidden');
+    }
+    hide(gallerySection);
+    hide(playingIndicator);
+    
     try {
       await audio.play();
+      updatePlayState(true);
     } catch (_) {
-      // If autoplay fails, leave it paused until user presses Play
+      updatePlayState(false);
     }
+    // We preload gallery silently, but keep hidden until first generation
     await refreshGallery(true);
   }
 
@@ -140,12 +173,19 @@ console.log("Synesthesia client loaded");
       const data = await res.json();
       generateStatus.textContent = 'Done!';
       promptInput.value = '';
-      // Prepend to gallery
+      // Reveal track info and gallery after first actual generation success
+      firstGenerationDoneForTrack = true;
+      if (trackInfo) {
+        trackInfo.style.display = '';
+        trackInfo.classList.remove('hidden');
+      }
+      show(gallerySection);
+      if (!audio.paused) show(playingIndicator);
+      // Prepend new image
       if (data.imageUrl) {
         renderGalleryItems([{ id: data.generationId, imageUrl: data.imageUrl, promptText: prompt }], true);
       } else {
-        // Fallback: refresh list
-        refreshGallery(true);
+        await refreshGallery(true);
       }
     } catch (e) {
       generateStatus.textContent = String(e.message || e);
@@ -156,11 +196,31 @@ console.log("Synesthesia client loaded");
 
   // Events
   startBtn?.addEventListener('click', startFlow);
-  playBtn?.addEventListener('click', () => audio.play());
-  pauseBtn?.addEventListener('click', () => audio.pause());
+  playPauseBtn?.addEventListener('click', () => {
+    if (audio.paused) {
+      audio.play().then(() => updatePlayState(true)).catch(() => updatePlayState(false));
+    } else {
+      audio.pause();
+      updatePlayState(false);
+    }
+  });
   nextBtn?.addEventListener('click', nextTrack);
   generateBtn?.addEventListener('click', onGenerate);
   promptInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') onGenerate(); });
   loadMoreBtn?.addEventListener('click', () => refreshGallery(false));
   refreshGalleryBtn?.addEventListener('click', () => refreshGallery(true));
+
+  // Audio event listeners
+  audio?.addEventListener('play', () => updatePlayState(true));
+  audio?.addEventListener('pause', () => updatePlayState(false));
+  audio?.addEventListener('ended', () => updatePlayState(false));
+
+  // Initialize: ensure track info is hidden on page load
+  if (trackInfo) {
+    trackInfo.style.display = 'none';
+    trackInfo.classList.add('hidden');
+    console.log('Track info hidden on init');
+  }
+  if (gallerySection) gallerySection.classList.add('hidden');
+  if (playingIndicator) playingIndicator.classList.add('hidden');
 })();

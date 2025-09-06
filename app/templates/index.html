@@ -19,14 +19,20 @@
 
       <section id="player-section" class="card hidden">
         <div class="track-meta">
-          <div>
+          <div id="track-info" class="hidden">
             <div id="track-title" class="title">—</div>
             <div id="track-artist" class="artist">—</div>
+            <div id="playing-indicator" class="playing-indicator hidden">
+              <span>Playing</span>
+              <div class="wave"></div>
+              <div class="wave"></div>
+              <div class="wave"></div>
+              <div class="wave"></div>
+            </div>
           </div>
           <div class="controls">
-            <button id="play-btn">Play</button>
-            <button id="pause-btn">Pause</button>
-            <button id="next-btn">Next</button>
+            <button id="play-pause-btn" class="audio-btn">▶</button>
+            <button id="next-btn" class="audio-btn">⏭</button>
           </div>
         </div>
         <audio id="audio" preload="auto"></audio>
@@ -56,7 +62,6 @@
     </main>
 
     <footer class="site-footer">
-      <small>Side project • MVP</small>
     </footer>
 
     <script src="/static/js/main.js"></script>
