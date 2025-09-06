@@ -7,10 +7,58 @@
     <link rel="stylesheet" href="/static/css/main.css" />
   </head>
   <body>
-    <main>
+    <header class="site-header">
       <h1>Synesthesia</h1>
-      <p>Flask app is running.</p>
+    </header>
+
+    <main class="container">
+      <section id="start-section" class="card">
+        <p>Click Start to enable audio and play a random track.</p>
+        <button id="start-btn">Start</button>
+      </section>
+
+      <section id="player-section" class="card hidden">
+        <div class="track-meta">
+          <div>
+            <div id="track-title" class="title">—</div>
+            <div id="track-artist" class="artist">—</div>
+          </div>
+          <div class="controls">
+            <button id="play-btn">Play</button>
+            <button id="pause-btn">Pause</button>
+            <button id="next-btn">Next</button>
+          </div>
+        </div>
+        <audio id="audio" preload="auto"></audio>
+      </section>
+
+      <section id="prompt-section" class="card hidden">
+        <label for="prompt-input">What does this song make you see?</label>
+        <div class="row">
+          <input id="prompt-input" type="text" placeholder="Describe a scene or feeling" />
+          <button id="generate-btn">Generate</button>
+        </div>
+        <div id="generate-status" class="status"></div>
+      </section>
+
+      <section id="gallery-section" class="card hidden">
+        <div class="row space-between">
+          <h2>Gallery for this track</h2>
+          <button id="refresh-gallery-btn">Refresh</button>
+        </div>
+        <div id="gallery-grid" class="grid"></div>
+        <div class="center">
+          <button id="load-more-btn" class="secondary">Load more</button>
+        </div>
+      </section>
+
+      <section id="error-section" class="card hidden error"></section>
     </main>
+
+    <footer class="site-footer">
+      <small>Side project • MVP</small>
+    </footer>
+
     <script src="/static/js/main.js"></script>
   </body>
 </html>

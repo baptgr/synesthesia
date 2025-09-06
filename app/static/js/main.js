@@ -1,1 +1,166 @@
 console.log("Synesthesia client loaded");
+
+(() => {
+  const startBtn = document.getElementById('start-btn');
+  const playerSection = document.getElementById('player-section');
+  const promptSection = document.getElementById('prompt-section');
+  const gallerySection = document.getElementById('gallery-section');
+  const errorSection = document.getElementById('error-section');
+  const playBtn = document.getElementById('play-btn');
+  const pauseBtn = document.getElementById('pause-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const audio = document.getElementById('audio');
+  const trackTitle = document.getElementById('track-title');
+  const trackArtist = document.getElementById('track-artist');
+  const promptInput = document.getElementById('prompt-input');
+  const generateBtn = document.getElementById('generate-btn');
+  const generateStatus = document.getElementById('generate-status');
+  const galleryGrid = document.getElementById('gallery-grid');
+  const loadMoreBtn = document.getElementById('load-more-btn');
+  const refreshGalleryBtn = document.getElementById('refresh-gallery-btn');
+
+  let currentTrack = null; // { id, title, artist, audioUrl }
+  let galleryOffset = 0;
+  const galleryLimit = 12;
+
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+  function setError(msg) {
+    if (!msg) { hide(errorSection); errorSection.textContent = ''; return; }
+    errorSection.textContent = msg;
+    show(errorSection);
+  }
+
+  async function fetchRandomTrack() {
+    const res = await fetch('/api/tracks/random');
+    if (!res.ok) throw new Error('Failed to get random track');
+    return res.json();
+  }
+
+  async function fetchGenerations(trackId, limit, offset) {
+    const params = new URLSearchParams({ trackId, limit: String(limit), offset: String(offset) });
+    const res = await fetch(`/api/generations?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to load gallery');
+    return res.json();
+  }
+
+  function renderGalleryItems(items, append = true) {
+    const fragment = document.createDocumentFragment();
+    items.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'card-image';
+      const img = document.createElement('img');
+      img.alt = (item.promptText || '').slice(0, 120) || 'Generated image';
+      img.loading = 'lazy';
+      img.src = item.imageUrl;
+      const caption = document.createElement('div');
+      caption.className = 'card-caption';
+      caption.textContent = item.promptText || '';
+      card.appendChild(img);
+      card.appendChild(caption);
+      fragment.appendChild(card);
+    });
+    if (!append) galleryGrid.innerHTML = '';
+    galleryGrid.appendChild(fragment);
+  }
+
+  async function refreshGallery(reset = true) {
+    if (!currentTrack) return;
+    if (reset) galleryOffset = 0;
+    try {
+      const data = await fetchGenerations(currentTrack.id, galleryLimit, galleryOffset);
+      const items = data.items || [];
+      renderGalleryItems(items, !reset);
+      galleryOffset += items.length;
+      show(gallerySection);
+    } catch (e) {
+      setError(String(e.message || e));
+    }
+  }
+
+  async function setTrack(track) {
+    currentTrack = track;
+    trackTitle.textContent = track.title || 'Untitled';
+    trackArtist.textContent = track.artist || '';
+    audio.src = track.audioUrl;
+    try {
+      await audio.play();
+    } catch (_) {
+      // If autoplay fails, leave it paused until user presses Play
+    }
+    await refreshGallery(true);
+  }
+
+  async function startFlow() {
+    setError('');
+    try {
+      const track = await fetchRandomTrack();
+      await setTrack(track);
+      hide(document.getElementById('start-section'));
+      show(playerSection);
+      show(promptSection);
+    } catch (e) {
+      setError(String(e.message || e));
+    }
+  }
+
+  async function nextTrack() {
+    setError('');
+    try {
+      const track = await fetchRandomTrack();
+      await setTrack(track);
+    } catch (e) {
+      setError(String(e.message || e));
+    }
+  }
+
+  async function onGenerate() {
+    if (!currentTrack) return;
+    const prompt = (promptInput.value || '').trim();
+    if (!prompt) {
+      generateStatus.textContent = 'Please enter a prompt.';
+      return;
+    }
+    generateStatus.textContent = 'Generating... (MVP stub)';
+    generateBtn.disabled = true;
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, trackId: currentTrack.id }),
+      });
+      if (res.status === 501) {
+        generateStatus.textContent = 'Image generation not implemented yet (Flux coming soon).';
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Generation failed');
+      }
+      const data = await res.json();
+      generateStatus.textContent = 'Done!';
+      promptInput.value = '';
+      // Prepend to gallery
+      if (data.imageUrl) {
+        renderGalleryItems([{ id: data.generationId, imageUrl: data.imageUrl, promptText: prompt }], true);
+      } else {
+        // Fallback: refresh list
+        refreshGallery(true);
+      }
+    } catch (e) {
+      generateStatus.textContent = String(e.message || e);
+    } finally {
+      generateBtn.disabled = false;
+    }
+  }
+
+  // Events
+  startBtn?.addEventListener('click', startFlow);
+  playBtn?.addEventListener('click', () => audio.play());
+  pauseBtn?.addEventListener('click', () => audio.pause());
+  nextBtn?.addEventListener('click', nextTrack);
+  generateBtn?.addEventListener('click', onGenerate);
+  promptInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') onGenerate(); });
+  loadMoreBtn?.addEventListener('click', () => refreshGallery(false));
+  refreshGalleryBtn?.addEventListener('click', () => refreshGallery(true));
+})();
