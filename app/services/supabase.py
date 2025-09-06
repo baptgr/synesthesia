@@ -1,6 +1,8 @@
 import os
 from typing import Optional
+from io import BytesIO
 
+import requests
 from supabase import Client, create_client
 
 
@@ -40,8 +42,16 @@ def get_public_url(bucket: str, path: str) -> str:
 
 
 def upload_bytes(bucket: str, path: str, data: bytes, content_type: str = "application/octet-stream", upsert: bool = False) -> None:
-    client = get_supabase_client()
-    file_options = {"content-type": content_type, "upsert": upsert}
-    resp = client.storage.from_(bucket).upload(path, data, file_options=file_options)
-    if isinstance(resp, dict) and resp.get("error"):
-        raise RuntimeError(f"Upload failed: {resp['error']}")
+    base_url = os.environ.get("SUPABASE_URL")
+    service_key = os.environ.get("SUPABASE_SERVICE_KEY")
+    if not base_url or not service_key:
+        raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set for uploads")
+    url = f"{base_url.rstrip('/')}/storage/v1/object/{bucket}/{path}"
+    headers = {
+        "Authorization": f"Bearer {service_key}",
+        "Content-Type": content_type,
+        "x-upsert": "true" if upsert else "false",
+    }
+    r = requests.post(url, headers=headers, data=data, timeout=60)
+    if not r.ok:
+        raise RuntimeError(f"Upload failed: {r.status_code} {r.text}")

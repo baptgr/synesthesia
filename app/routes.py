@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 import random
+import uuid
 
 bp = Blueprint("routes", __name__)
 
@@ -50,7 +51,7 @@ def list_generations():
         return jsonify({"error": "bad_request", "detail": "trackId is required"}), 400
 
     try:
-        from app.services.supabase import get_supabase_client
+        from app.services.supabase import get_supabase_client, generate_signed_url
 
         client = get_supabase_client()
         q = (
@@ -62,15 +63,21 @@ def list_generations():
         )
         res = q.execute()
         rows = res.data or []
-        items = [
-            {
+        items = []
+        for r in rows:
+            stored = r.get("image_url") or ""
+            if isinstance(stored, str) and stored.startswith("http"):
+                signed_or_public_url = stored
+            else:
+                # stored is expected to be the object path within the bucket
+                path = stored or ""
+                signed_or_public_url = generate_signed_url("generated-images", path, expires_in=3600)
+            items.append({
                 "id": r.get("id"),
-                "imageUrl": r.get("image_url"),
+                "imageUrl": signed_or_public_url,
                 "promptText": r.get("prompt_text"),
                 "createdAt": r.get("created_at"),
-            }
-            for r in rows
-        ]
+            })
         return jsonify({"items": items})
     except Exception as e:
         return jsonify({"error": "server_error", "detail": str(e)}), 500
@@ -84,5 +91,34 @@ def generate_image():
     if not prompt or not track_id:
         return jsonify({"error": "bad_request", "detail": "prompt and trackId are required"}), 400
 
-    # Implemented in step 5: call Flux, upload to Supabase, insert row, return { generationId, imageUrl }
-    return jsonify({"error": "not_implemented", "detail": "Flux integration pending"}), 501
+    try:
+        # Submit to BFL and poll
+        from app.services.bfl import BFLClient
+        from app.services.supabase import get_supabase_client, upload_bytes, generate_signed_url
+
+        bfl = BFLClient()
+        _, polling_url = bfl.submit_generation(prompt, model_endpoint="/flux-dev")
+        delivery_url = bfl.poll_result_url(polling_url)
+        img_bytes = bfl.download_image_bytes(delivery_url)
+
+        # Upload to Supabase Storage
+        generation_id = str(uuid.uuid4())
+        object_path = f"{generation_id}.png"
+        upload_bytes("generated-images", object_path, img_bytes, content_type="image/png", upsert=False)
+
+        # Create a signed URL for client consumption
+        signed_url = generate_signed_url("generated-images", object_path, expires_in=60 * 60)
+
+        # Insert DB row storing the object path (not signed URL)
+        client = get_supabase_client()
+        _ = client.table("generations").insert({
+            "id": generation_id,
+            "track_id": track_id,
+            "prompt_text": prompt,
+            "image_url": object_path,
+        }).execute()
+
+        return jsonify({"generationId": generation_id, "imageUrl": signed_url})
+
+    except Exception as e:
+        return jsonify({"error": "server_error", "detail": str(e)}), 500
